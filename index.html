@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+
+    <title>Proto br</title>
+
+</head>
+
+<body>
+
+    <!-- Page Content -->
+    <div class="container" id="app">
+
+        <input class="m-2" type="file" id="fileUpload" accept=".xls,.xlsx" @change='InputChange' /><br />
+
+        <div v-show="isload" class="btn-group" role="group" aria-label="Basic radio toggle button group">
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio1" @change="todosjogos" autocomplete="off"
+                checked>
+            <label class="btn btn-outline-primary" for="btnradio1">Jogos inscrito</label>
+
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio2" @change="proximaedicao"
+                autocomplete="off">
+            <label class="btn btn-outline-primary" for="btnradio2">Proximo evento</label>
+
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio3" @change="fila" autocomplete="off">
+            <label class="btn btn-outline-primary" for="btnradio3">Fila de espera</label>
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">inscrição</th>
+                    <th scope="col">participação</th>
+                    <th scope="col">participou</th>
+                    <th scope="col">nome do jogo</th>
+                    <th scope="col">nome do autor</th>
+                    <th scope="col">email</th>
+                    <th scope="col">zap</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for='linha in jogos'>
+                    <td>{{linha.data_inscricao}}</td>
+                    <td>{{linha.participacao}}</td>
+                    <td>x{{linha.qtdParticipacoes}}</td>
+                    <td>{{linha.nome}}</td>
+                    <td>{{linha.autor}}</td>
+                    <td>{{linha.email}}</td>
+                    <td><a target="_blank"
+                            :href="'https://wa.me/+55'+linha.zap+'?text=olá meu nome é [nome] vc se increveu no ProtoBr estou entrando em contato para confirmar sua presença, o evento será [dia]'">{{linha.zap}}</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+    <!-- /.container -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.3/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+    <script>
+        var myapp = new Vue({
+            el: '#app',
+            data: {
+                jogos: [],
+                jogosInscritos: [],
+                isload:false,
+            },
+            created: function () {
+
+            },
+            methods: {
+                InputChange: function (event) {
+                    let file = event.target.files[0];
+                    console.log(file);
+                    this.LoadJogos(file);
+                },
+                LoadJogos: function (file) {
+                    if (file) {
+                        console.log("Hi...");
+                        var fileReader = new FileReader();
+                        fileReader.onload = this.FileLoad;
+
+                        fileReader.readAsBinaryString(file);
+                    }
+                },
+                FileLoad: function (event) {
+                    var data = event.target.result;
+
+                    var workbook = XLSX.read(data, {
+                        type: "binary",
+                        cellDates: true
+                    });
+
+                    let rowObject = XLSX.utils.sheet_to_row_object_array(
+                        workbook.Sheets["Respostas ao formulário 1"], { dateNF: 'dd/mm/yyyy' }
+                    );
+
+                    this.jogosInscritos = rowObject.map(o => {
+                        return {
+                            participacao: !o["participacao"] ? "" : new Date(o["participacao"]).toLocaleDateString(),
+                            nome: o["Nome do jogo: "],
+                            autor: o["Nome do(a)(s) autor(es)(as):"],
+                            data_inscricao: new Date(o["Carimbo de data/hora"]).toLocaleDateString(),
+                            email: o["Endereço de e-mail"],
+                            zap: o["Número de telefone para contato por WhatsApp:"],
+                        }
+                    });
+                    this.jogosInscritos.forEach(element => {
+                        element.qtdParticipacoes = this.QuantidadeParticipacoes(element, this.jogosInscritos);
+                    });
+
+                    this.jogos = this.jogosInscritos;
+                    this.isload=true;
+
+                },
+                countname: function (nameKey, datekey, myArray) {
+
+                },
+                todosjogos: function () {
+                    console.log('todosjogos');
+                    this.jogos = this.jogosInscritos;
+                },
+                proximaedicao: function () {
+                    console.log('proximaedicao');
+                    this.jogos = this.jogosInscritos.filter(o => {
+                        return o.participacao == "" && o.qtdParticipacoes == 0;
+                    }).sort(this.ordenarPorData);
+                },
+                fila: function () {
+                    console.log('fila');
+                    let jogosnafila = this.jogosInscritos.filter(o => {
+                        return o.participacao != "" && o.qtdParticipacoes != 0;
+                    });
+                    this.jogos = this.removeDuplicide(jogosnafila, it => it.nome).sort(this.ordenarPorDataPart);
+
+                },
+                ordenarPorData: function (a, b) {
+                    dataA = new Date(a.data_inscricao.split('/')[2], a.data_inscricao.split('/')[1], a.data_inscricao.split('/')[0]);
+                    dataB = new Date(b.data_inscricao.split('/')[2], b.data_inscricao.split('/')[1], b.data_inscricao.split('/')[0]);
+
+                    return dataB - dataA;
+                },
+                ordenarPorDataPart: function (a, b) {
+                    dataA = new Date(a.participacao.split('/')[2], a.participacao.split('/')[1], a.participacao.split('/')[0]);
+                    dataB = new Date(b.participacao.split('/')[2], b.participacao.split('/')[1], b.participacao.split('/')[0]);
+
+                    return dataA - dataB && a.qtdParticipacoes - b.qtdParticipacoes;
+                },
+                QuantidadeParticipacoes: function (a, list) {
+                    let qtd = 0;
+                    list.forEach(element => {
+                        if (a.nome == element.nome) {
+                            if (element.participacao != "") {
+                                qtd++;
+                            }
+                        }
+                    });
+                    return qtd;
+                },
+                removeDuplicide: function (data, key) {
+                    return [
+                        ...new Map(
+                            data.map(x => [key(x), x])
+                        ).values()
+                    ]
+                }
+
+            }
+        })
+
+    </script>
+
+</body>
+
+</html>
