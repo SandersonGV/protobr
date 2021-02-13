@@ -118,7 +118,7 @@
                         element.qtdParticipacoes = this.QuantidadeParticipacoes(element, this.jogosInscritos);
                     });
 
-                    this.jogos = this.jogosInscritos;
+                    this.jogos = this.jogosInscritos.sort(this.ordenarPorData);
                     this.isload=true;
 
                 },
@@ -128,6 +128,7 @@
                 todosjogos: function () {
                     console.log('todosjogos');
                     this.jogos = this.jogosInscritos;
+                    this.jogos.sort(this.ordenarPorData);
                 },
                 proximaedicao: function () {
                     console.log('proximaedicao');
